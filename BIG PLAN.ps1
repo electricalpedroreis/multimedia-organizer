@@ -180,6 +180,8 @@ $from_mobile = Read-Host "Are you importing from mobile phone? (y/N)"
 $from_mobile = ConvertTo-Boolean -Variable $from_mobile
 
 if ($from_mobile ) {
+	echo "Note: To import from iPhone, the recommended method is https://pedroportelareis.blogspot.com/2026/03/descarregar-ficheiros-do-iphone.html"
+	echo "You can then run this script just for the organization part (skip the import)"
     $is_android = Read-Host "Are you importing from Android? (y/N)"
     $is_android = ConvertTo-Boolean -Variable $is_android
 
