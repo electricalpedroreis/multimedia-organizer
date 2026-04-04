@@ -180,7 +180,7 @@ $from_mobile = Read-Host "Are you importing from mobile phone? (y/N)"
 $from_mobile = ConvertTo-Boolean -Variable $from_mobile
 
 if ($from_mobile ) {
-	echo "Note: To import from iPhone, the recommended method is https://pedroportelareis.blogspot.com/2026/03/descarregar-ficheiros-do-iphone.html"
+	echo "Note: To import from iPhone, the recommended method is now https://pedroportelareis.blogspot.com/2026/03/descarregar-ficheiros-do-iphone.html"
 	echo "You can then run this script just for the organization part (skip the import)"
     $is_android = Read-Host "Are you importing from Android? (y/N)"
     $is_android = ConvertTo-Boolean -Variable $is_android
@@ -201,6 +201,7 @@ if ($from_mobile ) {
             }
         } catch {
             echo "Failure trying to connect to your android. On your mobile, you need to:"
+            echo " 0) connect USB cable capable of transmiting data (some only do power): should appear a transfer-data option on notifications and then pops-up a folder on PC"
             echo " 1) click version build several times" 
             echo " 2) activate programmer options" 
             echo " 3) activate debug (depuração) USB"
@@ -221,7 +222,9 @@ if ($from_mobile ) {
         Move-Folder-Android -rfolder "/sdcard/Android/media/com.whatsapp/WhatsApp/Media" -rfolder_sub "WhatsApp Images" -intermediary_path $intermediary_path
         Move-Folder-Android -rfolder "/sdcard/Android/media/com.whatsapp/WhatsApp/Media" -rfolder_sub "WhatsApp Video" -intermediary_path $intermediary_path
 
-        echo " Antes de continuar é melhor apagar coisas que vieram do WhatsApp ..."
+        echo " Antes de continuar é melhor apagar coisas que vieram do WhatsApp daqui $intermediary_path ..."
+        echo " Provavelmente a pasta Private/ é para apagar"
+        pause
         
     } 
     else {
@@ -236,12 +239,41 @@ if ($from_mobile ) {
             # TODO
             return
         }
+
+
+        $continue = $true
+
+        Write-Host "Running command... Press 'c' to stop"
+
+        while ($continue) {
+            # actual command
+            & "$PSScriptRoot\mptcopy.ps1" -phoneName 'Apple iPhone' -sourceFolder '\Internal Storage' -targetFolder $intermediary_path -filter '(.jpg)|(.jpeg)|(.png)|(.gif)|(.avi)|(.mov)|(.mp4)|(.HEIC)|(.HEIF)'
+
+    
+            # Check if 'c' key is pressed without blocking
+            if ([Console]::KeyAvailable) {
+                $key = [Console]::ReadKey($true)
+                if ($key.KeyChar -eq 'c') {
+                    $continue = $false
+                    Write-Host "`nStopping the command loop"
+                }
+            }
+    
+            # Optional: Add a small delay to prevent excessive CPU usage
+            Start-Sleep -Milliseconds 500
+        }
+
 		
         # TODO: Remove filter
-		& "$PSScriptRoot\mptcopy.ps1" -phoneName 'Apple iPhone' -sourceFolder '\Internal Storage\DCIM' -targetFolder $intermediary_path -filter '(.jpg)|(.jpeg)|(.png)|(.gif)|(.avi)|(.mov)|(.mp4)|(.HEIC)|(.HEIF)'
+		& "$PSScriptRoot\mptcopy.ps1" -phoneName 'Apple iPhone' -sourceFolder '\Internal Storage' -targetFolder $intermediary_path -filter '(.jpg)|(.jpeg)|(.png)|(.gif)|(.avi)|(.mov)|(.mp4)|(.HEIC)|(.HEIF)'
         # TODO: workaround windows crash when accessing iphone:
         # ex: [Window Title] Error Moving File or Folder [Content] The requested value cannot be determined. [OK]
         # when fail to connect to iphone: unplug, wait 1min, plug . try to avoid restart PC
+
+        echo "PLEASE open Photos app to check if we still have photos!"
+        echo "If these photos where already copied delete directly in the iPhone"
+        echo "otherwise, UNPLUG AND REPLUG THE iPHONE to force lacking folders appearence"
+        pause
     }
 }
 
@@ -268,21 +300,34 @@ pause
 #    b) camara (tlm) usada: marca + modelo
 #    c) onde é q a data é a correcta de usar
 # 4) Mover fotos para pasta ano/mes/dia
-$extensions="-ext avi -ext mov -ext mp4 -ext jpg -ext jpeg -ext png -ext thm -ext HEIC -ext AAE -ext webp"
+$extensions="-ext avi -ext mov -ext mp4 -ext jpg -ext jpeg -ext png -ext thm -ext HEIC -ext AAE -ext webp -ext gif -ext jfif"
 echo "Extensões a trabalhar: $extensions"
 
 echo "Let's now organize the multimedia?"
 pause
 
-$global:LASTEXITCODE = 0
-Invoke-Expression "& `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-filename<oldest_date`" ." # (can be run directly in a terminal "as is")
-#Invoke-Expression "& `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-testname<oldest_date`" ." # for DEBUG purposes
-if($LASTEXITCODE){
-    echo "ERROR: Couldn't run exiftool correctly (code: $LASTEXITCODE)"
-    Invoke-Expression "& EchoArgs `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-filename<oldest_date`" ."
-    return
-}
+$name_in_file = Read-Host "Want to rename files to have date (y) or into date folders (N)? (y/N)"
+$name_in_file = ConvertTo-Boolean -Variable $name_in_file
 
+if ($name_in_file ) {
+    $global:LASTEXITCODE = 0
+    Invoke-Expression "& `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y-%m-%d %%c%%f.%%e`" `"-filename<oldest_date`" ." # (can be run directly in a terminal "as is")
+    #Invoke-Expression "& `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y%B%d%%c%%f.%%e`" `"-testname<oldest_date`" ." # for DEBUG purposes
+    if($LASTEXITCODE){
+        echo "ERROR: Couldn't run exiftool correctly (code: $LASTEXITCODE)"
+        Invoke-Expression "& EchoArgs `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y-%m-%d %%c%%f.%%e`" `"-filename<oldest_date`" ."
+        return
+    }
+} else {
+    $global:LASTEXITCODE = 0
+    Invoke-Expression "& `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-filename<oldest_date`" ." # (can be run directly in a terminal "as is")
+    #Invoke-Expression "& `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-testname<oldest_date`" ." # for DEBUG purposes
+    if($LASTEXITCODE){
+        echo "ERROR: Couldn't run exiftool correctly (code: $LASTEXITCODE)"
+        Invoke-Expression "& EchoArgs `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-filename<oldest_date`" ."
+        return
+    }
+}
 # 5) nas próximas fotos fazer auto/ p as já definidas
 
 # 6) fazer igual para video
@@ -298,3 +343,4 @@ $dirs = gci $intermediary_path -directory -recurse | Where { (gci $_.fullName).c
 $dirs | Foreach-Object { Remove-Item $_ }
 
 # TODO: run dupeguru and remove duplicates
+echo "run dupeguru to remove duplicates"

@@ -61,10 +61,21 @@ if (-not (test-path $destinationFolderPath) )        {
 }
  
 $phone = Get-Phone -phoneName $phoneName
+echo "Trying to access $phoneName ($phone) at $phoneFolderPath"
 $folder = Get-SubFolder -parent $phone -path $phoneFolderPath
 
 if( $folder -eq $null ){ 
     echo "INFO: NO PHONE FOLDERS TO MOVE"
+    echo "If you cannot navigate the iPhone folders where the multimedia is, try to:"
+    echo " 1) At the PC, switch the USB port (also works among USB HUB ports)"
+    echo " 2) At the iPhone, wait a minute, unlock it and Accept to trust the PC"
+    echo " 3) At the PC, install or update iTunes and then close it"
+    echo " 4) At the iPhone, Exit, enter and exit the Photos app to force folder renewal"
+    echo " 5) At the iPhone, unplug and plug the USB cable"
+    echo " 6) Restart iPhone (vol. up > vol. down > long press power)"
+    echo " Maybe helps) At the iPhone, Update the OS"
+    echo " Maybe Helps to speed up) Restart PC"
+    echo " Maybe Helps) Open Device Manager > Universal Serial Bus controllers > Right-click each USB Root Hub or Generic USB Hub entry, then select Properties > Go to the Power Management tab, and uncheck Allow the computer to turn off this device to save power."
 } else {
     $subfolders = $folder.GetFolder.items()
     foreach ($subfolder in $subfolders) {    
