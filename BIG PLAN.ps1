@@ -24,23 +24,15 @@ Function Extract-String {
     {
         [string]$return = ""
 
-        if ($range -eq "Right")
-        {
+        if ($range -eq "Right") {
             $return = $string.Split("$character")[($string.Length - $string.Replace("$character","").Length)]
-        }
-        elseif ($range -eq "Left")
-        {
+        } elseif ($range -eq "Left") {
             $return = $string.Split("$character")[0]
-        }
-        elseif ($tonumber -ne 0)
-        {
-            for ($i = $afternumber; $i -le ($afternumber + $tonumber); $i++)
-            {
+        } elseif ($tonumber -ne 0) {
+            for ($i = $afternumber; $i -le ($afternumber + $tonumber); $i++) {
                 $return += $string.Split("$character")[$i]
             }
-        }
-        else
-        {
+        } else {
             $return = $string.Split("$character")[$afternumber]
         }
 
@@ -76,6 +68,7 @@ Function Move-Folder-Android {
             echo "Couldn't run adb stat at `"$rfolder/$rfolder_sub_w_treated_spaces/*`" "
             Invoke-Expression "& EchoArgs shell stat -c `"%n,%s`" `"$rfolder/$rfolder_sub_w_treated_spaces/*`""
             Remove-Item $android_file
+            pause
             return
         }
 
@@ -115,6 +108,7 @@ Function Move-Folder-Android {
             } catch {
                 echo "failed when running following adb command:"
                 Invoke-Expression "& EchoArgs pull `"$rfolder/$rfolder_sub/$file`" `"$intermediary_path/$rfolder_sub`""
+                pause
                 return
             }
         }
@@ -133,6 +127,7 @@ Function Move-Folder-Android {
 
         if( $files_to_copy ){
             echo "ERROR: some problem happened, as we still have stuff to be copied!"
+            pause
             return
         }
 
@@ -146,6 +141,7 @@ Function Move-Folder-Android {
         } catch {
             echo "failed when running following adb command:"
             Invoke-Expression "& EchoArgs pull -a `"$rfolder/$rfolder_sub`" `"$intermediary_path`""
+            pause
             return
         }
     }
@@ -157,24 +153,44 @@ Function Move-Folder-Android {
         Invoke-Expression "& adb -d shell rm -rf `"$rfolder/$rfolder_sub_w_treated_spaces`""
     } catch {
         echo "failed when running remove adb command"
+        pause
         return
     }
 }
 
-$intermediary_path = "$pwd"  # assume user starts from folder he wants to organize (when extraction from mobile was already done (i.e. he is running this on some non-mobile photos folder))
-#$intermediary_path = $base_path + "\por arranjar"
+# Check if output folder already exists
+$output_path = Get-ChildItem -Path "$PSScriptRoot\.." -Directory -Recurse -Filter "MULTIMEDIA ARRANJADA" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
 
-$base_path="$pwd\.." # go to the folder below bin/ (where this executable exists) or below "por arranjar/"
-# normalize (remove ".." from path):
-$base_path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($base_path)
+echo " "  
+# assume user starts from folder he wants to organize (used if extraction from mobile was already done); this will be updated if import from mobile is chosen
+$intermediary_path = "$pwd"
+
+if ($null -ne $output_path -and (Test-Path $output_path)) {
+    echo "Output folder already existent."
+    $base_path = "$output_path\.."
+    # normalize (remove ".." from path):
+    $base_path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($base_path)
+} else {
+    $output_path = Get-ChildItem -Path "$pwd\.." -Directory -Recurse -Filter "MULTIMEDIA ARRANJADA" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+    if ($null -ne $output_path -and (Test-Path $output_path)) {
+        echo "Output folder already existent"
+        $base_path = "$output_path\.."
+        # normalize (remove ".." from path):
+        $base_path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($base_path)
+    } else {
+        echo "New output folder."
+        $base_path="$pwd\.." # go to the folder below bin/ (where this executable exists) or below "por arranjar/"
+        # normalize (remove ".." from path):
+        $base_path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($base_path)
+        $output_path = $base_path + "\MULTIMEDIA ARRANJADA"
+    }
+}
+
+echo "Output folder to be used: $output_path"
 
 # add bin to path
 $ENV:PATH=”$ENV:PATH;$base_path\bin”
 #echo "path = $ENV:PATH"    # for DEBUG
-echo " "
-
-$output_path = $base_path + "\MULTIMEDIA ARRANJADA"
-echo "Directoria de saída: $output_path"
 
 $from_mobile = Read-Host "Are you importing from mobile phone? (y/N)"
 $from_mobile = ConvertTo-Boolean -Variable $from_mobile
@@ -182,8 +198,8 @@ $from_mobile = ConvertTo-Boolean -Variable $from_mobile
 if ($from_mobile ) {
 	echo "Note: To import from iPhone, the recommended method is now https://pedroportelareis.blogspot.com/2026/03/descarregar-ficheiros-do-iphone.html"
 	echo "You can then run this script just for the organization part (skip the import)"
-    $is_android = Read-Host "Are you importing from Android? (y/N)"
-    $is_android = ConvertTo-Boolean -Variable $is_android
+    $is_android = Read-Host "Are you importing from Android? (Y/n)"
+    $is_android = if ([string]::IsNullOrEmpty($is_android) -or $is_android -eq 'y') { $true } else { $false }
 
     if ($is_android ) {
         $intermediary_path = $base_path + "\por arranjar - android"
@@ -197,6 +213,8 @@ if ($from_mobile ) {
                 echo " 2) activate programmer options" 
                 echo " 3) activate debug (depuração) USB"
                 echo " 4) run this + allow at mobile screen"
+                echo " 5) if step above not working, restart both PC & mobile"
+                pause
                 return
             }
         } catch {
@@ -206,6 +224,8 @@ if ($from_mobile ) {
             echo " 2) activate programmer options" 
             echo " 3) activate debug (depuração) USB"
             echo " 4) run this + allow at mobile screen"
+            echo " 5) if step above not working, restart both PC & mobile"
+            pause
             return
         }
 
@@ -222,24 +242,24 @@ if ($from_mobile ) {
         Move-Folder-Android -rfolder "/sdcard/Android/media/com.whatsapp/WhatsApp/Media" -rfolder_sub "WhatsApp Images" -intermediary_path $intermediary_path
         Move-Folder-Android -rfolder "/sdcard/Android/media/com.whatsapp/WhatsApp/Media" -rfolder_sub "WhatsApp Video" -intermediary_path $intermediary_path
 
-        echo " Antes de continuar é melhor apagar coisas que vieram do WhatsApp daqui $intermediary_path ..."
-        echo " Provavelmente a pasta Private/ é para apagar"
-        pause
-        
+        echo " Before continuing you may clean up some stuff that came from WhatsApp: $intermediary_path ..."
+        echo " You may probably remove the folders Private/"
+        echo " "
+        echo "For security reasons, you can now turn off programmer mode in your Android mobile"
+        pause    
     } 
     else {
         $intermediary_path = $base_path + "\por arranjar - iphone"
 		
 		if (test-path $intermediary_path) {
             # no probl
-        } else { #folder doesn't exist
+        } else {             #folder doesn't exist
             echo "'$intermediary_path' folder doesn't exist! Create it?"
             pause
             New-Item -Path "$intermediary_path\.." -Name "por arranjar - iphone" -ItemType "directory"
             # TODO
             return
         }
-
 
         $continue = $true
 
@@ -249,10 +269,10 @@ if ($from_mobile ) {
             # actual command
             & "$PSScriptRoot\mptcopy.ps1" -phoneName 'Apple iPhone' -sourceFolder '\Internal Storage' -targetFolder $intermediary_path -filter '(.jpg)|(.jpeg)|(.png)|(.gif)|(.avi)|(.mov)|(.mp4)|(.HEIC)|(.HEIF)'
 
-    
             # Check if 'c' key is pressed without blocking
             if ([Console]::KeyAvailable) {
                 $key = [Console]::ReadKey($true)
+
                 if ($key.KeyChar -eq 'c') {
                     $continue = $false
                     Write-Host "`nStopping the command loop"
@@ -260,9 +280,8 @@ if ($from_mobile ) {
             }
     
             # Optional: Add a small delay to prevent excessive CPU usage
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 2000
         }
-
 		
         # TODO: Remove filter
 		& "$PSScriptRoot\mptcopy.ps1" -phoneName 'Apple iPhone' -sourceFolder '\Internal Storage' -targetFolder $intermediary_path -filter '(.jpg)|(.jpeg)|(.png)|(.gif)|(.avi)|(.mov)|(.mp4)|(.HEIC)|(.HEIF)'
@@ -300,8 +319,8 @@ pause
 #    b) camara (tlm) usada: marca + modelo
 #    c) onde é q a data é a correcta de usar
 # 4) Mover fotos para pasta ano/mes/dia
-$extensions="-ext avi -ext mov -ext mp4 -ext jpg -ext jpeg -ext png -ext thm -ext HEIC -ext AAE -ext webp -ext gif -ext jfif"
-echo "Extensões a trabalhar: $extensions"
+$extensions="-ext avi -ext mov -ext mp4 -ext jpg -ext jpeg -ext png -ext thm -ext HEIC -ext AAE -ext webp -ext gif -ext jfif -ext m4v"
+echo "Extensions to be considered: $extensions"
 
 echo "Let's now organize the multimedia?"
 pause
@@ -316,6 +335,7 @@ if ($name_in_file ) {
     if($LASTEXITCODE){
         echo "ERROR: Couldn't run exiftool correctly (code: $LASTEXITCODE)"
         Invoke-Expression "& EchoArgs `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y-%m-%d %%c%%f.%%e`" `"-filename<oldest_date`" ."
+        pause
         return
     }
 } else {
@@ -325,6 +345,7 @@ if ($name_in_file ) {
     if($LASTEXITCODE){
         echo "ERROR: Couldn't run exiftool correctly (code: $LASTEXITCODE)"
         Invoke-Expression "& EchoArgs `"exiftool.exe`" -r -P $extensions -v0 -d `"$output_path\%Y\%m-%B\%d\%%c\%%f.%%e`" `"-filename<oldest_date`" ."
+        pause
         return
     }
 }
@@ -344,3 +365,4 @@ $dirs | Foreach-Object { Remove-Item $_ }
 
 # TODO: run dupeguru and remove duplicates
 echo "run dupeguru to remove duplicates"
+pause

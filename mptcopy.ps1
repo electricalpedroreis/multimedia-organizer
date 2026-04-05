@@ -45,8 +45,7 @@ function Get-SubFolder
     $current = $parent
     foreach ($pathPart in $pathParts)
     {
-        if ($pathPart)
-        {
+        if ($pathPart) {
             $current = $current.GetFolder.items() | where { $_.Name -eq $pathPart }
         }
     }
